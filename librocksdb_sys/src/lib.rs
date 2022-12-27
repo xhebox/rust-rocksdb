@@ -21,7 +21,7 @@ extern crate tempfile;
 use std::ffi::CStr;
 use std::fmt;
 
-use libc::{c_char, c_double, c_int, c_uchar, c_void, size_t};
+use libc::{c_char, c_double, c_float, c_int, c_uchar, c_void, size_t};
 
 // FFI-safe opaque types.
 //
@@ -108,6 +108,8 @@ pub struct DBSliceTransform(c_void);
 #[repr(C)]
 pub struct DBRateLimiter(c_void);
 #[repr(C)]
+pub struct DBWriteBufferManager(c_void);
+#[repr(C)]
 pub struct DBStatistics(c_void);
 #[repr(C)]
 pub struct DBLogger(c_void);
@@ -117,6 +119,8 @@ pub struct DBCompactOptions(c_void);
 pub struct DBFifoCompactionOptions(c_void);
 #[repr(C)]
 pub struct DBPinnableSlice(c_void);
+#[repr(C)]
+pub struct DBConcurrentTaskLimiter(c_void);
 #[repr(C)]
 pub struct DBUserCollectedProperties(c_void);
 #[repr(C)]
@@ -691,6 +695,14 @@ extern "C" {
         memtable_memory_budget: c_int,
     );
     pub fn crocksdb_options_set_env(options: *mut Options, env: *mut DBEnv);
+    pub fn crocksdb_options_set_write_buffer_manager(
+        options: *mut Options,
+        wbm: *mut DBWriteBufferManager,
+    );
+    pub fn crocksdb_options_set_compaction_thread_limiter(
+        options: *mut Options,
+        wbm: *mut DBConcurrentTaskLimiter,
+    );
     pub fn crocksdb_options_set_compaction_filter(
         options: *mut Options,
         filter: *mut DBCompactionFilter,
@@ -948,6 +960,20 @@ extern "C" {
         limiter: *mut DBRateLimiter,
         pri: c_uchar,
     ) -> i64;
+
+    pub fn crocksdb_write_buffer_manager_create(
+        flush_size: size_t,
+        stall_ratio: c_float,
+        flush_oldest_first: bool,
+    ) -> *mut DBWriteBufferManager;
+    pub fn crocksdb_write_buffer_manager_destroy(wbm: *mut DBWriteBufferManager);
+
+    pub fn crocksdb_concurrent_task_limiter_create(
+        name: *const c_char,
+        limit: u32,
+    ) -> *mut DBConcurrentTaskLimiter;
+    pub fn crocksdb_concurrent_task_limiter_destroy(limiter: *mut DBConcurrentTaskLimiter);
+
     pub fn crocksdb_options_set_soft_pending_compaction_bytes_limit(options: *mut Options, v: u64);
     pub fn crocksdb_options_get_soft_pending_compaction_bytes_limit(options: *mut Options) -> u64;
     pub fn crocksdb_options_set_hard_pending_compaction_bytes_limit(options: *mut Options, v: u64);
