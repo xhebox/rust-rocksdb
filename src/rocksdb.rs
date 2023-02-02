@@ -18,7 +18,7 @@ use crocksdb_ffi::{
     DBTitanDBOptions, DBWriteBatch,
 };
 use libc::{self, c_char, c_int, c_void, size_t};
-use librocksdb_sys::{DBMemoryAllocator, DBPeriodicWorkType};
+use librocksdb_sys::DBMemoryAllocator;
 use metadata::ColumnFamilyMetaData;
 use rocksdb_options::{
     CColumnFamilyDescriptor, ColumnFamilyDescriptor, ColumnFamilyOptions, CompactOptions,
@@ -818,6 +818,18 @@ impl DB {
     pub fn continue_bg_work(&self) {
         unsafe {
             crocksdb_ffi::crocksdb_continue_bg_work(self.inner);
+        }
+    }
+
+    pub fn disable_manual_compaction(&self) {
+        unsafe {
+            crocksdb_ffi::crocksdb_disable_manual_compaction(self.inner);
+        }
+    }
+
+    pub fn enable_manual_compaction(&self) {
+        unsafe {
+            crocksdb_ffi::crocksdb_enable_manual_compaction(self.inner);
         }
     }
 
@@ -2038,13 +2050,6 @@ impl DB {
                 input_file_names.len(),
                 output_level
             ));
-            Ok(())
-        }
-    }
-
-    pub fn do_periodic_work(&self, work_type: DBPeriodicWorkType) -> Result<(), String> {
-        unsafe {
-            ffi_try!(crocksdb_do_periodic_work(self.inner, work_type));
             Ok(())
         }
     }
@@ -3834,17 +3839,5 @@ mod test {
             cfs.iter().map(|cf| *cf).zip(cfs_opts).collect(),
         )
         .unwrap();
-    }
-
-    #[test]
-    fn test_offload_periodic_work() {
-        let path = tempdir_with_prefix("_rust_rocksdb_test_offload_periodic_work");
-        let mut opts = DBOptions::new();
-        opts.create_if_missing(true);
-        opts.create_missing_column_families(true);
-        opts.disable_periodic_work_scheduler(true);
-        let db = DB::open(opts, path.path().to_str().unwrap()).unwrap();
-        db.do_periodic_work(DBPeriodicWorkType::FlushInfoLog)
-            .unwrap();
     }
 }

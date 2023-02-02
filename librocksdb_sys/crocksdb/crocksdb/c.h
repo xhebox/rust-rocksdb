@@ -375,6 +375,11 @@ extern C_ROCKSDB_LIBRARY_API void crocksdb_close(crocksdb_t* db);
 extern C_ROCKSDB_LIBRARY_API void crocksdb_pause_bg_work(crocksdb_t* db);
 extern C_ROCKSDB_LIBRARY_API void crocksdb_continue_bg_work(crocksdb_t* db);
 
+extern C_ROCKSDB_LIBRARY_API void crocksdb_disable_manual_compaction(
+    crocksdb_t* db);
+extern C_ROCKSDB_LIBRARY_API void crocksdb_enable_manual_compaction(
+    crocksdb_t* db);
+
 extern C_ROCKSDB_LIBRARY_API void crocksdb_put(
     crocksdb_t* db, const crocksdb_writeoptions_t* options, const char* key,
     size_t keylen, const char* val, size_t vallen, char** errptr);
@@ -1303,6 +1308,8 @@ crocksdb_options_set_skip_log_error_on_recovery(crocksdb_options_t*,
                                                 unsigned char);
 extern C_ROCKSDB_LIBRARY_API void crocksdb_options_set_stats_dump_period_sec(
     crocksdb_options_t*, unsigned int);
+extern C_ROCKSDB_LIBRARY_API void crocksdb_options_set_stats_persist_period_sec(
+    crocksdb_options_t*, uint32_t);
 extern C_ROCKSDB_LIBRARY_API void crocksdb_options_set_advise_random_on_open(
     crocksdb_options_t*, unsigned char);
 extern C_ROCKSDB_LIBRARY_API void
@@ -1385,9 +1392,6 @@ extern C_ROCKSDB_LIBRARY_API void crocksdb_options_set_max_subcompactions(
     crocksdb_options_t*, uint32_t);
 extern C_ROCKSDB_LIBRARY_API void crocksdb_options_set_wal_bytes_per_sync(
     crocksdb_options_t*, uint64_t);
-extern C_ROCKSDB_LIBRARY_API void
-crocksdb_options_set_disable_periodic_work_scheduler(crocksdb_options_t*,
-                                                     unsigned char);
 
 enum {
   crocksdb_tolerate_corrupted_tail_records_recovery = 0,
@@ -2276,10 +2280,6 @@ crocksdb_compaction_options_set_output_file_size_limit(
 extern C_ROCKSDB_LIBRARY_API void
 crocksdb_compaction_options_set_max_subcompactions(
     crocksdb_compaction_options_t*, int);
-
-extern C_ROCKSDB_LIBRARY_API void crocksdb_do_periodic_work(crocksdb_t*,
-                                                            int work_type,
-                                                            char** errptr);
 
 extern C_ROCKSDB_LIBRARY_API void crocksdb_compact_files_cf(
     crocksdb_t*, crocksdb_column_family_handle_t*,

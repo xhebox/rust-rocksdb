@@ -921,6 +921,14 @@ void crocksdb_continue_bg_work(crocksdb_t* db) {
   db->rep->ContinueBackgroundWork();
 }
 
+void crocksdb_disable_manual_compaction(crocksdb_t* db) {
+  db->rep->DisableManualCompaction();
+}
+
+void crocksdb_enable_manual_compaction(crocksdb_t* db) {
+  db->rep->EnableManualCompaction();
+}
+
 crocksdb_t* crocksdb_open_column_families(
     const crocksdb_options_t* db_options, const char* name,
     int num_column_families, const char** column_family_names,
@@ -2133,11 +2141,6 @@ void crocksdb_options_set_wal_bytes_per_sync(crocksdb_options_t* opt,
   opt->rep.wal_bytes_per_sync = v;
 }
 
-void crocksdb_options_set_disable_periodic_work_scheduler(
-    crocksdb_options_t* opt, unsigned char v) {
-  opt->rep.disable_periodic_work_scheduler = v;
-}
-
 static BlockBasedTableOptions* get_block_based_table_options(
     crocksdb_options_t* opt) {
   if (opt && opt->rep.table_factory != nullptr) {
@@ -3032,6 +3035,11 @@ void crocksdb_options_set_skip_log_error_on_recovery(crocksdb_options_t* opt,
 void crocksdb_options_set_stats_dump_period_sec(crocksdb_options_t* opt,
                                                 unsigned int v) {
   opt->rep.stats_dump_period_sec = v;
+}
+
+void crocksdb_options_set_stats_persist_period_sec(crocksdb_options_t* opt,
+                                                   uint32_t v) {
+  opt->rep.stats_persist_period_sec = v;
 }
 
 void crocksdb_options_set_advise_random_on_open(crocksdb_options_t* opt,
@@ -5853,12 +5861,6 @@ void crocksdb_compact_files_cf(crocksdb_t* db,
     input_files.push_back(input_file_names[i]);
   }
   auto s = db->rep->CompactFiles(opts->rep, cf->rep, input_files, output_level);
-  SaveError(errptr, s);
-}
-
-void crocksdb_do_periodic_work(crocksdb_t* db, int work_type, char** errptr) {
-  auto s =
-      db->rep->DoPeriodicWork(static_cast<DB::PeriodicWorkType>(work_type));
   SaveError(errptr, s);
 }
 

@@ -1105,6 +1105,12 @@ impl DBOptions {
         }
     }
 
+    pub fn set_stats_persist_period_sec(&mut self, n: u32) {
+        unsafe {
+            crocksdb_ffi::crocksdb_options_set_stats_persist_period_sec(self.inner, n);
+        }
+    }
+
     pub fn set_db_log_dir(&mut self, path: &str) {
         let path = CString::new(path.as_bytes()).unwrap();
         unsafe {
@@ -1326,12 +1332,6 @@ impl DBOptions {
                 return None;
             }
             Some(CStr::from_ptr(memtable_name).to_str().unwrap())
-        }
-    }
-
-    pub fn disable_periodic_work_scheduler(&self, v: bool) {
-        unsafe {
-            crocksdb_ffi::crocksdb_options_set_disable_periodic_work_scheduler(self.inner, v);
         }
     }
 }

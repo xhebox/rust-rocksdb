@@ -533,14 +533,6 @@ pub enum DBTableFileCreationReason {
     Misc = 3,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-#[repr(C)]
-pub enum DBPeriodicWorkType {
-    FlushInfoLog = 0,
-    DumpStats = 1,
-    PersistStats = 2,
-}
-
 /// # Safety
 ///
 /// ptr must point to a valid CStr value
@@ -868,7 +860,6 @@ extern "C" {
     pub fn crocksdb_options_set_wal_recovery_mode(options: *mut Options, mode: DBRecoveryMode);
     pub fn crocksdb_options_set_max_subcompactions(options: *mut Options, v: u32);
     pub fn crocksdb_options_set_wal_bytes_per_sync(options: *mut Options, v: u64);
-    pub fn crocksdb_options_set_disable_periodic_work_scheduler(options: *mut Options, v: bool);
 
     pub fn crocksdb_options_set_statistics(options: *mut Options, statistics: *mut DBStatistics);
     pub fn crocksdb_options_get_statistics(options: *mut Options) -> *mut DBStatistics;
@@ -903,7 +894,9 @@ extern "C" {
         standard_deviation: *mut c_double,
         max: *mut c_double,
     ) -> bool;
+
     pub fn crocksdb_options_set_stats_dump_period_sec(options: *mut Options, v: usize);
+    pub fn crocksdb_options_set_stats_persist_period_sec(options: *mut Options, v: u32);
     pub fn crocksdb_options_set_num_levels(options: *mut Options, v: c_int);
     pub fn crocksdb_options_get_num_levels(options: *mut Options) -> c_int;
     pub fn crocksdb_options_set_db_log_dir(options: *mut Options, path: *const c_char);
@@ -1201,6 +1194,8 @@ extern "C" {
     pub fn crocksdb_close(db: *mut DBInstance);
     pub fn crocksdb_pause_bg_work(db: *mut DBInstance);
     pub fn crocksdb_continue_bg_work(db: *mut DBInstance);
+    pub fn crocksdb_disable_manual_compaction(db: *mut DBInstance);
+    pub fn crocksdb_enable_manual_compaction(db: *mut DBInstance);
     pub fn crocksdb_destroy_db(options: *const Options, path: *const c_char, err: *mut *mut c_char);
     pub fn crocksdb_repair_db(options: *const Options, path: *const c_char, err: *mut *mut c_char);
     // Merge
@@ -2527,12 +2522,6 @@ extern "C" {
         input_file_names: *const *const c_char,
         input_file_count: size_t,
         output_level: c_int,
-        errptr: *mut *mut c_char,
-    );
-
-    pub fn crocksdb_do_periodic_work(
-        db: *mut DBInstance,
-        work_type: DBPeriodicWorkType,
         errptr: *mut *mut c_char,
     );
 
