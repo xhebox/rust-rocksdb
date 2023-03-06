@@ -8,7 +8,7 @@ pub use crocksdb_ffi::DBCompactionFilter;
 use crocksdb_ffi::{
     self, DBCompactionFilterContext, DBCompactionFilterFactory, DBTableFileCreationReason,
 };
-use libc::{c_char, c_int, c_uchar, c_void, malloc, memcpy, size_t};
+use libc::{c_char, c_int, c_void, malloc, memcpy, size_t};
 
 /// Decision used in `CompactionFilter::filter`.
 pub enum CompactionFilterDecision {
@@ -151,7 +151,7 @@ pub unsafe fn new_compaction_filter<C: CompactionFilter>(
 
 /// Just like `new_compaction_filter`, but returns a raw pointer instead of a RAII struct.
 /// Generally used in `CompactionFilterFactory::create_compaction_filter`.
-pub unsafe fn new_compaction_filter_raw<C: CompactionFilter>(
+unsafe fn new_compaction_filter_raw<C: CompactionFilter>(
     c_name: CString,
     f: C,
 ) -> *mut DBCompactionFilter {
@@ -227,20 +227,27 @@ impl CompactionFilterContext {
             slice::from_raw_parts(end_key_ptr, end_key_len)
         }
     }
+
+    pub fn reason(&self) -> DBTableFileCreationReason {
+        let ctx = &self.0 as *const DBCompactionFilterContext;
+        unsafe { crocksdb_ffi::crocksdb_compactionfiltercontext_reason(ctx) }
+    }
 }
 
 pub trait CompactionFilterFactory {
+    type Filter: CompactionFilter;
+
     fn create_compaction_filter(
         &self,
         context: &CompactionFilterContext,
-    ) -> *mut DBCompactionFilter;
+    ) -> Option<(CString, Self::Filter)>;
 
     /// Returns whether a thread creating table files for the specified `reason`
     /// should have invoke `create_compaction_filter` and pass KVs through the returned
     /// filter.
-    fn should_filter_table_file_creation(&self, reason: DBTableFileCreationReason) -> c_uchar {
+    fn should_filter_table_file_creation(&self, reason: DBTableFileCreationReason) -> bool {
         // For compatibility, `CompactionFilter`s by default apply during compaction.
-        matches!(reason, DBTableFileCreationReason::Compaction) as c_uchar
+        matches!(reason, DBTableFileCreationReason::Compaction)
     }
 }
 
@@ -278,7 +285,11 @@ mod factory {
         unsafe {
             let factory = &mut *(factory as *mut CompactionFilterFactoryProxy<C>);
             let context: &CompactionFilterContext = &*(context as *const CompactionFilterContext);
-            factory.factory.create_compaction_filter(context)
+            if let Some((name, filter)) = factory.factory.create_compaction_filter(context) {
+                super::new_compaction_filter_raw(name, filter)
+            } else {
+                std::ptr::null_mut()
+            }
         }
     }
 
@@ -288,8 +299,7 @@ mod factory {
     ) -> c_uchar {
         unsafe {
             let factory = &*(factory as *const CompactionFilterFactoryProxy<C>);
-            let reason: DBTableFileCreationReason = reason as DBTableFileCreationReason;
-            factory.factory.should_filter_table_file_creation(reason)
+            factory.factory.should_filter_table_file_creation(reason) as c_uchar
         }
     }
 }
@@ -328,7 +338,6 @@ pub unsafe fn new_compaction_filter_factory<C: CompactionFilterFactory>(
 
 #[cfg(test)]
 mod tests {
-    use libc::c_uchar;
     use std::ffi::CString;
     use std::str;
     use std::sync::mpsc::{self, SyncSender};
@@ -337,71 +346,58 @@ mod tests {
     use librocksdb_sys::DBTableFileCreationReason;
 
     use crate::{
-        new_compaction_filter_raw, ColumnFamilyOptions, CompactionFilter, CompactionFilterContext,
-        CompactionFilterFactory, DBCompactionFilter, DBOptions, Writable, DB,
+        ColumnFamilyOptions, CompactionFilter, CompactionFilterContext, CompactionFilterFactory,
+        DBOptions, Writable, DB,
     };
 
-    struct Factory(SyncSender<()>);
-
-    impl Drop for Factory {
-        fn drop(&mut self) {
-            self.0.send(()).unwrap();
-        }
-    }
-
-    impl CompactionFilterFactory for Factory {
-        fn create_compaction_filter(&self, _: &CompactionFilterContext) -> *mut DBCompactionFilter {
-            return std::ptr::null_mut();
-        }
-    }
+    struct NoopFilter;
+    impl CompactionFilter for NoopFilter {}
 
     struct Filter(SyncSender<()>);
-
     impl Drop for Filter {
         fn drop(&mut self) {
             self.0.send(()).unwrap();
         }
     }
+    impl CompactionFilter for Filter {}
 
-    impl CompactionFilter for Filter {
-        fn filter(&mut self, _: usize, _: &[u8], _: &[u8], _: &mut Vec<u8>, _: &mut bool) -> bool {
-            false
+    struct Factory(SyncSender<()>);
+    impl Drop for Factory {
+        fn drop(&mut self) {
+            self.0.send(()).unwrap();
+        }
+    }
+    impl CompactionFilterFactory for Factory {
+        type Filter = NoopFilter;
+        fn create_compaction_filter(
+            &self,
+            _: &CompactionFilterContext,
+        ) -> Option<(CString, Self::Filter)> {
+            None
         }
     }
 
     struct KeyRangeFilter;
-
-    impl CompactionFilter for KeyRangeFilter {
-        fn filter(&mut self, _: usize, _: &[u8], _: &[u8], _: &mut Vec<u8>, _: &mut bool) -> bool {
-            false
-        }
-    }
+    impl CompactionFilter for KeyRangeFilter {}
 
     struct KeyRangeFactory(SyncSender<Vec<u8>>);
-
     impl CompactionFilterFactory for KeyRangeFactory {
+        type Filter = KeyRangeFilter;
         fn create_compaction_filter(
             &self,
             context: &CompactionFilterContext,
-        ) -> *mut DBCompactionFilter {
+        ) -> Option<(CString, Self::Filter)> {
             let start_key = context.start_key();
             let end_key = context.end_key();
             self.0.send(start_key.to_owned()).unwrap();
             self.0.send(end_key.to_owned()).unwrap();
-
-            unsafe {
-                new_compaction_filter_raw::<KeyRangeFilter>(
-                    CString::new("key_range_filter").unwrap(),
-                    KeyRangeFilter,
-                )
-            }
+            Some((CString::new("key_range_filter").unwrap(), KeyRangeFilter))
         }
     }
 
     struct FlushFactory {}
 
-    struct FlushFilter {}
-
+    struct FlushFilter;
     impl CompactionFilter for FlushFilter {
         fn filter(&mut self, _: usize, _: &[u8], _: &[u8], _: &mut Vec<u8>, _: &mut bool) -> bool {
             true
@@ -409,16 +405,17 @@ mod tests {
     }
 
     impl CompactionFilterFactory for FlushFactory {
-        fn should_filter_table_file_creation(&self, reason: DBTableFileCreationReason) -> c_uchar {
-            matches!(reason, DBTableFileCreationReason::Flush) as c_uchar
+        type Filter = FlushFilter;
+        fn should_filter_table_file_creation(&self, reason: DBTableFileCreationReason) -> bool {
+            matches!(reason, DBTableFileCreationReason::Flush)
         }
 
         fn create_compaction_filter(
             &self,
             _context: &CompactionFilterContext,
-        ) -> *mut DBCompactionFilter {
+        ) -> Option<(CString, Self::Filter)> {
             let name = CString::new("flush_compaction_filter").unwrap();
-            unsafe { new_compaction_filter_raw::<FlushFilter>(name, FlushFilter {}) }
+            Some((name, FlushFilter))
         }
     }
 
