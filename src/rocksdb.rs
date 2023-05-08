@@ -1282,6 +1282,7 @@ impl DB {
             let cfs: Vec<*mut _> = cfs.iter().map(|cf| cf.inner).collect();
             let mut opts = FlushOptions::new();
             opts.set_wait(wait);
+            opts.set_allow_write_stall(true);
             ffi_try!(crocksdb_flush_cfs(
                 self.inner,
                 cfs.as_ptr(),
