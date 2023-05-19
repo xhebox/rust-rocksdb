@@ -140,7 +140,7 @@ fn test_titandb() {
             let v = vec![k; (size + 1) as usize];
             db.put(&[k], &v).unwrap();
         }
-        db.flush(true).unwrap();
+        db.flush(true, false).unwrap();
     }
 
     let mut cf_opts = ColumnFamilyOptions::new();
@@ -242,7 +242,7 @@ fn generate_file_bottom_level(db: &DB, handle: &CFHandle, range: ops::Range<u32>
         let v = format!("value{}", i);
         db.put_cf(handle, k.as_bytes(), v.as_bytes()).unwrap();
     }
-    db.flush_cf(handle, true).unwrap();
+    db.flush_cf(handle, true, false).unwrap();
 
     let opts = db.get_options_cf(handle);
     let mut compact_opts = CompactOptions::new();
@@ -346,7 +346,7 @@ fn test_get_blob_cache_usage() {
     for i in 0..200 {
         db.put(format!("k_{}", i).as_bytes(), b"v").unwrap();
     }
-    db.flush(true).unwrap();
+    db.flush(true, false).unwrap();
     for i in 0..200 {
         db.get(format!("k_{}", i).as_bytes()).unwrap();
     }
@@ -408,7 +408,7 @@ fn test_titan_statistics() {
     db.put_opt(b"k0", b"a", &wopts).unwrap();
     db.put_opt(b"k1", b"b", &wopts).unwrap();
     db.put_opt(b"k2", b"c", &wopts).unwrap();
-    db.flush(true /* sync */).unwrap(); // flush memtable to sst file.
+    db.flush(true /* wait */, false).unwrap(); // flush memtable to sst file.
     assert_eq!(db.get(b"k0").unwrap().unwrap(), b"a");
     assert_eq!(db.get(b"k1").unwrap().unwrap(), b"b");
     assert_eq!(db.get(b"k2").unwrap().unwrap(), b"c");

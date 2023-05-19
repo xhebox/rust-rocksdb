@@ -3138,9 +3138,9 @@ mod test {
             )
             .expect("");
         }
-        db.flush(true).expect("");
+        db.flush(true, false).expect("");
         assert!(db.get(b"0001").expect("").is_some());
-        db.flush(true).expect("");
+        db.flush(true, false).expect("");
         let sizes = db.get_approximate_sizes(&[
             Range::new(b"0000", b"2000"),
             Range::new(b"2000", b"4000"),
@@ -3160,12 +3160,12 @@ mod test {
         let path = tempdir_with_prefix("_rust_rocksdb_propertytest");
         let db = DB::open_default(path.path().to_str().unwrap()).unwrap();
         db.put(b"a1", b"v1").unwrap();
-        db.flush(true).unwrap();
+        db.flush(true, false).unwrap();
         let prop_name = "rocksdb.total-sst-files-size";
         let st1 = db.get_property_int(prop_name).unwrap();
         assert!(st1 > 0);
         db.put(b"a2", b"v2").unwrap();
-        db.flush(true).unwrap();
+        db.flush(true, false).unwrap();
         let st2 = db.get_property_int(prop_name).unwrap();
         assert!(st2 > st1);
     }
@@ -3304,7 +3304,7 @@ mod test {
             .spawn(move || {
                 db1.put(b"k1", b"v1").unwrap();
                 db1.put(b"k2", b"v2").unwrap();
-                db1.flush(true).unwrap();
+                db1.flush(true, false).unwrap();
                 db1.compact_range(None, None);
             })
             .unwrap();
@@ -3356,7 +3356,7 @@ mod test {
         for i in 0..200 {
             db.put(format!("k_{}", i).as_bytes(), b"v").unwrap();
         }
-        db.flush(true).unwrap();
+        db.flush(true, false).unwrap();
         for i in 0..200 {
             db.get(format!("k_{}", i).as_bytes()).unwrap();
         }
@@ -3379,7 +3379,7 @@ mod test {
             db.put_cf(cf_handle, format!("k_{}", i).as_bytes(), b"v")
                 .unwrap();
         }
-        db.flush_cf(cf_handle, true).unwrap();
+        db.flush_cf(cf_handle, true, false).unwrap();
 
         let total_sst_files_size = db
             .get_property_int_cf(cf_handle, "rocksdb.total-sst-files-size")
@@ -3423,7 +3423,7 @@ mod test {
             db.put(k, v).unwrap();
             assert_eq!(v.as_slice(), &*db.get(k).unwrap().unwrap());
         }
-        db.flush(true).unwrap();
+        db.flush(true, false).unwrap();
         let key_versions = db.get_all_key_versions(b"key2", b"key4").unwrap();
         assert_eq!(key_versions[1].key, "key3");
         assert_eq!(key_versions[1].value, "value3");
@@ -3571,7 +3571,7 @@ mod test {
             options.disable_wal(true);
             db.write_opt(&wb, &options).unwrap();
             let handles: Vec<_> = cfs.iter().map(|name| db.cf_handle(name).unwrap()).collect();
-            db.flush_cfs(&handles, true).unwrap();
+            db.flush_cfs(&handles, true, false).unwrap();
         }
 
         let opts = DBOptions::new();
@@ -3800,7 +3800,7 @@ mod test {
             }
         }
         {
-            db.flush(true).unwrap();
+            db.flush(true, false).unwrap();
         }
         assert_eq!(
             1,
