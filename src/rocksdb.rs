@@ -1251,10 +1251,11 @@ impl DB {
 
     /// Flush all memtable data.
     /// If wait, the flush will wait until the flush is done.
-    pub fn flush(&self, wait: bool) -> Result<(), String> {
+    pub fn flush(&self, wait: bool, allow_write_stall: bool) -> Result<(), String> {
         unsafe {
             let mut opts = FlushOptions::new();
             opts.set_wait(wait);
+            opts.set_allow_write_stall(allow_write_stall);
             ffi_try!(crocksdb_flush(self.inner, opts.inner));
             Ok(())
         }
@@ -1262,10 +1263,16 @@ impl DB {
 
     /// Flush all memtable data for specified cf.
     /// If wait, the flush will wait until the flush is done.
-    pub fn flush_cf(&self, cf: &CFHandle, wait: bool) -> Result<(), String> {
+    pub fn flush_cf(
+        &self,
+        cf: &CFHandle,
+        wait: bool,
+        allow_write_stall: bool,
+    ) -> Result<(), String> {
         unsafe {
             let mut opts = FlushOptions::new();
             opts.set_wait(wait);
+            opts.set_allow_write_stall(allow_write_stall);
             ffi_try!(crocksdb_flush_cf(self.inner, cf.inner, opts.inner));
             Ok(())
         }
@@ -1277,12 +1284,17 @@ impl DB {
     /// If atomic flush is enabled, flush_cfs will flush all column families
     /// specified in `cfs` up to the latest sequence number at the time
     /// when flush is requested.
-    pub fn flush_cfs(&self, cfs: &[&CFHandle], wait: bool) -> Result<(), String> {
+    pub fn flush_cfs(
+        &self,
+        cfs: &[&CFHandle],
+        wait: bool,
+        allow_write_stall: bool,
+    ) -> Result<(), String> {
         unsafe {
             let cfs: Vec<*mut _> = cfs.iter().map(|cf| cf.inner).collect();
             let mut opts = FlushOptions::new();
             opts.set_wait(wait);
-            opts.set_allow_write_stall(true);
+            opts.set_allow_write_stall(allow_write_stall);
             ffi_try!(crocksdb_flush_cfs(
                 self.inner,
                 cfs.as_ptr(),
