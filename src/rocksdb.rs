@@ -1251,6 +1251,7 @@ impl DB {
 
     /// Flush all memtable data.
     /// If wait, the flush will wait until the flush is done.
+    /// If allow_write_stall, flush immediately regardless write stall.
     pub fn flush(&self, wait: bool, allow_write_stall: bool) -> Result<(), String> {
         unsafe {
             let mut opts = FlushOptions::new();
@@ -1263,6 +1264,7 @@ impl DB {
 
     /// Flush all memtable data for specified cf.
     /// If wait, the flush will wait until the flush is done.
+    /// If allow_write_stall, flush immediately regardless write stall.
     pub fn flush_cf(
         &self,
         cf: &CFHandle,
@@ -1284,6 +1286,8 @@ impl DB {
     /// If atomic flush is enabled, flush_cfs will flush all column families
     /// specified in `cfs` up to the latest sequence number at the time
     /// when flush is requested.
+    /// If wait, the flush will wait until the flush is done.
+    /// If allow_write_stall, flush immediately regardless write stall.
     pub fn flush_cfs(
         &self,
         cfs: &[&CFHandle],
