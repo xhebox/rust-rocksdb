@@ -193,7 +193,7 @@ fn test_table_properties_collector_factory() {
         db.put(k, v).unwrap();
         assert_eq!(v.as_slice(), &*db.get(k).unwrap().unwrap());
     }
-    db.flush(true).unwrap();
+    db.flush(true, false).unwrap();
     let collection = db.get_properties_of_all_tables().unwrap();
     check_collection(&collection, 1, 4, 4, 0, 0);
 
@@ -202,7 +202,7 @@ fn test_table_properties_collector_factory() {
     for &(ref k, _) in &samples[0..2] {
         db.delete_cf(cf, k).unwrap();
     }
-    db.flush_cf(cf, true).unwrap();
+    db.flush_cf(cf, true, false).unwrap();
     let collection = db.get_properties_of_all_tables_cf(cf).unwrap();
     check_collection(&collection, 2, 6, 4, 0, 2);
 
@@ -268,7 +268,7 @@ fn test_table_properties_with_table_filter() {
         db.put(k, v).unwrap();
         assert_eq!(v.as_slice(), &*db.get(k).unwrap().unwrap());
     }
-    db.flush(true).unwrap();
+    db.flush(true, false).unwrap();
 
     // Generate a sst with 2 entries
     let samples = vec![
@@ -279,7 +279,7 @@ fn test_table_properties_with_table_filter() {
         db.put(k, v).unwrap();
         assert_eq!(v.as_slice(), &*db.get(k).unwrap().unwrap());
     }
-    db.flush(true).unwrap();
+    db.flush(true, false).unwrap();
 
     // Scan with table filter
     let f = BigTableFilter::new(2);
