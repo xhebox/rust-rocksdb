@@ -1034,6 +1034,7 @@ extern "C" {
         wbm: *mut DBWriteBufferManager,
         flush_size: size_t,
     );
+    pub fn crocksdb_write_buffer_manager_flush_size(wbm: *mut DBWriteBufferManager) -> usize;
     pub fn crocksdb_write_buffer_manager_set_flush_oldest_first(
         wbm: *mut DBWriteBufferManager,
         flush_oldest_first: bool,
@@ -1569,6 +1570,11 @@ extern "C" {
     pub fn crocksdb_flushoptions_destroy(opt: *mut DBFlushOptions);
     pub fn crocksdb_flushoptions_set_wait(opt: *mut DBFlushOptions, whether_wait: bool);
     pub fn crocksdb_flushoptions_set_allow_write_stall(opt: *mut DBFlushOptions, allow: bool);
+    pub fn crocksdb_flushoptions_set_expected_oldest_key_time(opt: *mut DBFlushOptions, time: u64);
+    pub fn crocksdb_flushoptions_set_check_if_compaction_disabled(
+        opt: *mut DBFlushOptions,
+        check: bool,
+    );
 
     pub fn crocksdb_flush(
         db: *mut DBInstance,
@@ -1630,6 +1636,12 @@ extern "C" {
         range_limit_key_len: size_t,
         count: *mut u64,
         size: *mut u64,
+    );
+    pub fn crocksdb_approximate_active_memtable_stats_cf(
+        db: *const DBInstance,
+        cf: *const DBCFHandle,
+        memory_bytes: *mut u64,
+        oldest_key_time: *mut u64,
     );
     pub fn crocksdb_compactoptions_create() -> *mut DBCompactOptions;
     pub fn crocksdb_compactoptions_destroy(opt: *mut DBCompactOptions);

@@ -38,6 +38,7 @@ use std::ffi::{CStr, CString};
 use std::path::Path;
 use std::ptr;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use table_filter::{destroy_table_filter, table_filter, TableFilter};
 use table_properties_collector_factory::{
     new_table_properties_collector_factory, TablePropertiesCollectorFactory,
@@ -461,6 +462,10 @@ impl WriteBufferManager {
         unsafe {
             crocksdb_ffi::crocksdb_write_buffer_manager_set_flush_size(self.inner, s);
         }
+    }
+
+    pub fn flush_size(&self) -> usize {
+        unsafe { crocksdb_ffi::crocksdb_write_buffer_manager_flush_size(self.inner) }
     }
 
     pub fn set_flush_oldest_first(&self, f: bool) {
@@ -2149,15 +2154,17 @@ pub struct FlushOptions {
     pub(crate) inner: *mut DBFlushOptions,
 }
 
-impl FlushOptions {
-    pub fn new() -> FlushOptions {
+impl Default for FlushOptions {
+    fn default() -> Self {
         unsafe {
-            FlushOptions {
+            Self {
                 inner: crocksdb_ffi::crocksdb_flushoptions_create(),
             }
         }
     }
+}
 
+impl FlushOptions {
     pub fn set_wait(&mut self, wait: bool) {
         unsafe {
             crocksdb_ffi::crocksdb_flushoptions_set_wait(self.inner, wait);
@@ -2167,6 +2174,19 @@ impl FlushOptions {
     pub fn set_allow_write_stall(&mut self, allow: bool) {
         unsafe {
             crocksdb_ffi::crocksdb_flushoptions_set_allow_write_stall(self.inner, allow);
+        }
+    }
+
+    pub fn set_expected_oldest_key_time(&mut self, time: SystemTime) {
+        let time = time.duration_since(UNIX_EPOCH).unwrap().as_secs();
+        unsafe {
+            crocksdb_ffi::crocksdb_flushoptions_set_expected_oldest_key_time(self.inner, time);
+        }
+    }
+
+    pub fn set_check_if_compaction_disabled(&mut self, check: bool) {
+        unsafe {
+            crocksdb_ffi::crocksdb_flushoptions_set_check_if_compaction_disabled(self.inner, check);
         }
     }
 }
