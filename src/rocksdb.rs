@@ -1477,6 +1477,21 @@ impl DB {
         }
     }
 
+    pub fn check_in_range(
+        &self,
+        start_key: Option<&[u8]>,
+        end_key: Option<&[u8]>,
+    ) -> Result<(), String> {
+        unsafe {
+            let (start, s_len) = start_key.map_or((ptr::null(), 0), |k| (k.as_ptr(), k.len()));
+            let (end, e_len) = end_key.map_or((ptr::null(), 0), |k| (k.as_ptr(), k.len()));
+            ffi_try!(crocksdb_check_in_range(
+                self.inner, start, s_len, end, e_len
+            ));
+            Ok(())
+        }
+    }
+
     pub fn delete_file(&self, path: &str) -> Result<(), String> {
         unsafe {
             let file_path = CString::new(path).unwrap();
@@ -3869,8 +3884,8 @@ mod test {
         env.set_background_threads(0);
         env.set_high_priority_background_threads(4);
         assert_eq!(env.get_high_priority_background_threads(), 4);
-        env.set_high_priority_background_threads(0);
-        assert_eq!(env.get_high_priority_background_threads(), 0);
+        env.set_high_priority_background_threads(1);
+        assert_eq!(env.get_high_priority_background_threads(), 1);
     }
 
     #[test]
@@ -3920,6 +3935,8 @@ mod test {
         )
         .unwrap();
         db1.put_opt(b"1", b"v", &wopts).unwrap();
+        db1.check_in_range(Some(b"1"), Some(b"2")).unwrap();
+        db1.check_in_range(Some(b"2"), Some(b"3")).unwrap_err();
         let db2 = DB::open_cf(
             opts.clone(),
             root_path.join("2").to_str().unwrap(),
@@ -3927,6 +3944,7 @@ mod test {
         )
         .unwrap();
         db2.put_opt(b"2", b"v", &wopts).unwrap();
+        db2.check_in_range(Some(b"2"), Some(b"3")).unwrap();
         let db3 = DB::open_cf(
             opts.clone(),
             root_path.join("3").to_str().unwrap(),
@@ -3939,6 +3957,8 @@ mod test {
             ..Default::default()
         };
         db3.merge_instances(&mopts, &[&db1, &db2]).unwrap();
+        db3.check_in_range(Some(b"2"), Some(b"3")).unwrap_err();
+        db3.check_in_range(Some(b"1"), Some(b"3")).unwrap();
         assert_eq!(db3.get(b"1").unwrap().unwrap(), b"v");
         assert_eq!(db3.get(b"2").unwrap().unwrap(), b"v");
         let wbm = opts.get_write_buffer_manager().unwrap();
